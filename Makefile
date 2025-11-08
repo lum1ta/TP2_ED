@@ -1,46 +1,34 @@
-# ================================
-# Makefile for TP_2 project
-# ================================
-
-# Compiler and flags
+# Compilador e flags
 CXX = g++
 CXXFLAGS = -Wall -std=c++17 -Iinclude -g
 
-# Folders
+# Pastas
 SRC_DIR = src
 OBJ_DIR = obj
 BIN_DIR = bin
 
-# Executable name
+# Nome do executável final
 TARGET = $(BIN_DIR)/tp3.out
 
-# Source files and corresponding object files
-SRC_FILES = $(wildcard $(SRC_DIR)/*.cpp)
-OBJ_FILES = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRC_FILES))
+# Lista de arquivos fonte e objetos
+SRCS = $(wildcard $(SRC_DIR)/*.cpp)
+OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
 
-# Default target
+# Regra principal
 all: $(TARGET)
 
-# Link objects into final executable
-$(TARGET): $(OBJ_FILES)
+$(TARGET): $(OBJS)
 	@mkdir -p $(BIN_DIR)
-	$(CXX) $(OBJ_FILES) -o $(TARGET)
-	@echo "✅ Build completo: $(TARGET)"
+	$(CXX) $(CXXFLAGS) -o $@ $(OBJS)
+	@echo "✅ Executável gerado em $(TARGET)"
 
-# Compile each .cpp into .o
+# Regra genérica para compilar .cpp -> .o
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	@mkdir -p $(OBJ_DIR)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 	@echo "🔹 Compilado: $<"
 
-# Clean build artifacts
+# Limpeza
 clean:
 	rm -rf $(OBJ_DIR)/*.o $(TARGET)
-	@echo "🧹 Limpeza completa."
-
-# Run the program
-run: all
-	@echo "🚀 Executando programa..."
-	@./$(TARGET)
-
-.PHONY: all clean run
+	@echo "🧹 Limpeza completa"

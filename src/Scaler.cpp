@@ -12,7 +12,7 @@ void Scaler::Initialize() {
         delete eventHeap; // garante que não há vazamento de memória
     }
     eventHeap = new MinHeap();
-    cout << "[Scaler] Inicializado com sucesso." << endl;
+    //cout << "[Scaler] Inicializado com sucesso." << endl;
 }
 
 //Insert
@@ -23,18 +23,18 @@ void Scaler::Insert(Event* e) {
         return;
     }
     eventHeap->Insert(e);
-    cout << "[Scaler] Evento inserido (tempo = " << e->getTime() << ")." << endl;
+    //cout << "[Scaler] Evento inserido (tempo = " << e->getTime() << ")." << endl;
 }
 
 //Remove next event
 // Remove e retorna o próximo evento (menor tempo)
 Event* Scaler::RemoveNextEvent() {
     if (!eventHeap || eventHeap->isEmpty()) {
-        cerr << "[Scaler] Nenhum evento disponível para remoção." << endl;
+        //cerr << "[Scaler] Nenhum evento disponível para remoção." << endl;
         return nullptr;
     }
     Event* nextEvent = eventHeap->RemoveMin();
-    cout << "[Scaler] Evento removido (tempo = " << nextEvent->getTime() << ")." << endl;
+    //cout << "[Scaler] Evento removido (tempo = " << nextEvent->getTime() << ")." << endl;
     return nextEvent;
 }
 
@@ -45,7 +45,7 @@ void Scaler::Finish() {
         eventHeap->clear();
         delete eventHeap;
         eventHeap = nullptr;
-        cout << "[Scaler] Finalizado e heap limpa." << endl;
+        //cout << "[Scaler] Finalizado e heap limpo." << endl;
     }
 }
 

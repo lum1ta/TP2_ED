@@ -32,6 +32,7 @@ Event* MinHeap::RemoveMin(){
     Event* minEvent = heapArray[0];
     heapArray[0] = heapArray[size -1];
     size--;
+    heapDown(0);
     return minEvent;
 }
 
@@ -66,7 +67,7 @@ void MinHeap::heapUp(int index){
 void MinHeap::heapDown(int index){
     while(true){
         int left = 2 *index +1; //maior
-        int right = 2*index -1;//menor
+        int right = 2*index +2;//menor
         int smallest = index;
 
         if(left < size && compare(heapArray[left],heapArray[smallest])){
