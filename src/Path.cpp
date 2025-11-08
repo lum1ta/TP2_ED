@@ -1,5 +1,4 @@
 #include "Path.h"
-#include <cmath>
 
 //Construtor
 Path::Path(){
