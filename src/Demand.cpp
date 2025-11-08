@@ -44,7 +44,7 @@ Run* Demand::getRun() const {return runAss;}
 
 //Setters
 void Demand::setState(StateDemand newState){
-    StateDemand = newState;
+    state = newState;
 }
 void Demand::setRun(Run* runPtr){
     runAss = runPtr;
