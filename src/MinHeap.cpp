@@ -49,11 +49,6 @@ bool MinHeap::isEmpty() const{
     return size == 0;
 }
 
-//Getsize
-int MinHeap::getSize() const {
-    return size;
-}
-
 //HeapUp
 void MinHeap::heapUp(int index){
     while (index > 0) {

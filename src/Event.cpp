@@ -3,11 +3,11 @@
 
 //Constructor
 Event::Event(){
-    double time = 0.0;            
-    Event_Type type = NEW_DEMAND;       //vou colocar esse como padrão mas sei lá talvez mude
-    Path* pathPtr = nullptr;         
-    Demand* demandPtr = nullptr;      
-    Run* runPtr = nullptr;            
+    time = 0.0;            
+    type = NEW_DEMAND;       //vou colocar esse como padrão mas sei lá talvez mude
+    pathPtr = nullptr;         
+    demandPtr = nullptr;      
+    runPtr = nullptr;            
 }
 Event::Event(double time, Event_Type type, Path* pathPtr, Demand* demandPtr, Run* runPt){
     this->time = time;

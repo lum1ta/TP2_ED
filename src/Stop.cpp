@@ -4,9 +4,10 @@
 
 //Constructors
 Stop::Stop(){
-    x,y = 0.0;
-    Stop_Type type = PICKUP; //padrao de  parada ser de embarque
-    Demand* demandPtr = nullptr; 
+    x = 0.0;
+    y = 0.0;
+    type = STOP_PICKUP; //padrao de  parada ser de embarque
+    demandPtr = nullptr; 
 }
 
 Stop::Stop(double x, double y, Stop_Type type, Demand* demandPtr){
@@ -16,7 +17,7 @@ Stop::Stop(double x, double y, Stop_Type type, Demand* demandPtr){
     this->demandPtr = demandPtr;
 }
 
-//Getters
+//Getters 
 double Stop::getX() const {
     return x;
 }

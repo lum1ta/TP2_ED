@@ -7,8 +7,8 @@
 using namespace std;
 
 enum Stop_Type {
-    PICKUP,
-    DROPOFF
+    STOP_PICKUP,
+    STOP_DROPOFF
 };
 
 class Stop{
