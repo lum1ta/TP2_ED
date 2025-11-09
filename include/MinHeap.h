@@ -4,7 +4,7 @@
 #include "Event.h"
 #include <iostream>
 
-#define MAX_HEAP 500 //high fixed limit
+#define MAX_HEAP 10000 //high fixed limit
 
 class MinHeap {
     private:

@@ -19,8 +19,8 @@ void MinHeap::Insert(Event* e){
         return;
     }
     heapArray[size] = e;
-    heapUp(size);
     size++;
+    heapUp(size - 1);
 }
 
 //Remove
@@ -31,6 +31,7 @@ Event* MinHeap::RemoveMin(){
     }
     Event* minEvent = heapArray[0];
     heapArray[0] = heapArray[size -1];
+    heapArray[size - 1] = nullptr;
     size--;
     heapDown(0);
     return minEvent;
@@ -39,7 +40,7 @@ Event* MinHeap::RemoveMin(){
 //Peek Min
 Event* MinHeap::peekMin() const{
     if(isEmpty()){
-        cerr << "Não há nada há excluir";
+        cerr << "Não há nada a excluir";
         return nullptr;
     }
     return heapArray[0];

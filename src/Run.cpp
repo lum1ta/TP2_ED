@@ -19,7 +19,7 @@ Run::Run(){
 }
 
 Run::Run(int id){
-    this->id = 0;
+    this->id = id;
     numDemands = 0;
     numPaths = 0;
     time_passed = 0.0;
@@ -58,10 +58,12 @@ Demand* Run::getD(int i) const {
 void Run::addPath(Path* p) {
     if (numPaths < MAX_PATH && p != nullptr) {
         paths[numPaths++] = p;
+        dist_T += p->getDistance();  // <-- importante
     } else {
-        std::cerr << "Erro: limite máximo de paths atingido ou path nulo." << std::endl;
+        cerr << "Erro: limite máximo de paths atingido ou path nulo." << endl;
     }
 }
+
 
 int Run::getNumPaths() const {
     return numPaths;
@@ -89,6 +91,12 @@ double Run::getDist_T() const {
 double Run::getEficiency() const {
     return eficiency;
 }
+int Run::getId() const { 
+    return id; 
+}
+void Run::setId(int newId) { 
+    id = newId; 
+}
 
 //Destructor
 Run::~Run(){
@@ -106,37 +114,37 @@ Run::~Run(){
     numDemands = 0;
     time_passed = 0.0;
     dist_T = 0.0;
-    eficiency = 100.0;
+    eficiency = 1.0;
 }
 void Run::C_eficiency() {
     /*
-        A eficiência de uma corrida pode ser calculada como:
+        A eficiência de uma corrida (λ) é definida como:
 
-        λ = (soma das distâncias diretas de cada demanda) / (distância total da corrida) * 100
+            λ = (soma das distâncias diretas de cada demanda associada)
+                / (distância total da corrida)
 
-        Esse cálculo mostra quanto da rota é "efetivamente útil".
-        Uma corrida 100% eficiente significa que não há desvios ou compartilhamento ineficiente.
+        - λ = 1.0 → corrida individual (100%)
+        - λ > 1.0 → corrida combinada mais eficiente (economia de percurso)
+        - λ < 1.0 → corrida menos eficiente (desvios, ociosidade, etc.)
     */
 
-    if (numDemands == 0 || dist_T == 0.0) {
-        eficiency = 100.0;
+    if (numDemands == 0 || dist_T <= 0.0) {
+        eficiency = 1.0;  // corrida trivial: 100%
         return;
     }
 
-    double sum_direct = 0.0;
+    double total_direct_distance = 0.0;
 
+    // Soma das distâncias diretas (origem → destino de cada demanda)
     for (int i = 0; i < numDemands; i++) {
         Demand* d = demands[i];
         if (d != nullptr) {
             double dx = d->getDestX() - d->getOriginX();
             double dy = d->getDestY() - d->getOriginY();
-            sum_direct += sqrt(dx * dx + dy * dy);
+            total_direct_distance += sqrt(dx * dx + dy * dy);
         }
     }
 
-    eficiency = (sum_direct / dist_T) * 100.0;
-
-    // Evita que o valor passe de 100% por imprecisão numérica
-    if (eficiency > 100.0)
-        eficiency = 100.0;
+    eficiency = total_direct_distance / dist_T;
 }
+

@@ -10,11 +10,10 @@ Demand::Demand() {
     state = DEMANDED; //estado padrão da demanda
     dist_T = 0.0;
     time_P = 0.0;
-    eficiency = 100.0;   // eficiência padrão = 100%
+    eficiency = 1.0;   // eficiência padrão = 100%
     runAss = nullptr; //Nenhuma corrida associada ainda
 }
 
-//nao sei se o  id é um numero inteiro
 Demand::Demand(int id,double S_time,double originX,double originY,double destX,double destY){
     this->id = id;
     this->S_time = S_time;

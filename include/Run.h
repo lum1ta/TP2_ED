@@ -33,6 +33,9 @@ public:
     void addD(Demand* d);
     int getNumD() const;
     Demand* getD(int i) const;
+    int getId() const;
+    void setId(int newId);
+
 
     // Paths
     void addPath(Path* p);

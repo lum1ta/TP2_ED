@@ -2,9 +2,10 @@
 #define STOP_H
 
 #include <string>
-#include "Demand.h"
 
 using namespace std;
+
+class Demand;
 
 enum Stop_Type {
     STOP_PICKUP,
