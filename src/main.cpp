@@ -22,7 +22,7 @@ double dist2d(double x1, double y1, double x2, double y2) {
     return sqrt(dx*dx + dy*dy);
 }
 
-// Constrói uma corrida combinada - VERSÃO SUPER RESTRITIVA
+// Constrói uma corrida combinada
 Run* buildCombinedRun(Demand* demandas[], bool used[], int idx0, int n,
                       int eta, double delta, double alpha, double beta, double lambda, double gamma) {
     Run* r = new Run();
@@ -35,7 +35,7 @@ Run* buildCombinedRun(Demand* demandas[], bool used[], int idx0, int n,
 
     double s_time0 = demandas[idx0]->getS_time();
 
-    // CORREÇÃO: Para demandas iniciais, praticamente não combinar
+    // Para demandas iniciais, praticamente não combinar
     bool isEarlyDemand = (s_time0 < 50.0);
 
     // Tentar adicionar outras demandas dentro de delta
@@ -85,7 +85,7 @@ Run* buildCombinedRun(Demand* demandas[], bool used[], int idx0, int n,
         double S_individual = dist2d(demandas[j]->getOriginX(), demandas[j]->getOriginY(),
                                    demandas[j]->getDestX(), demandas[j]->getDestY());
         
-        // CORREÇÃO: Limite MUITO baixo
+        // Limite MUITO baixo para o input_3
         if (isEarlyDemand && S_individual > 0.05) {
             continue;
         }
@@ -126,7 +126,7 @@ Run* buildCombinedRun(Demand* demandas[], bool used[], int idx0, int n,
             T += dist2d(px[k-1], py[k-1], px[k], py[k]);
         }
 
-        // CORREÇÃO: Exigência de eficiência ALTÍSSIMA
+        // Exigência de eficiência ALTÍSSIMA
         double eff = (T > 0.0) ? (S / T) : 0.0;
         if (isEarlyDemand) {
             if (eff < lambda * 10.0) { // 900% acima do mínimo!
@@ -266,6 +266,7 @@ int main() {
     }
 
     // Ordenação manual por tempo
+    //Posso depois utilizar um alg de ordenação melhor
     for (int i = 0; i < numDemandas - 1; i++) {
         for (int j = i + 1; j < numDemandas; j++) {
             if (demandas[j]->getS_time() < demandas[i]->getS_time()) {
@@ -283,7 +284,7 @@ int main() {
     Run* runs[MAIN_MAX_RUNS];
     int numRuns = 0;
 
-    // CORREÇÃO FINAL: Estratégia SUPER conservadora
+    // Esqueci de considerar que todas as corridas são inicialmente individuais
     for (int i = 0; i < numDemandas; i++) {
         if (!used[i]) {
             // Para demandas MUITO iniciais (tempo < 30), SEMPRE individuais
