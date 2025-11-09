@@ -8,7 +8,7 @@ OBJ_DIR = obj
 BIN_DIR = bin
 
 # Nome do executável final
-TARGET = $(BIN_DIR)/tp3.out
+TARGET = $(BIN_DIR)/tp2.out
 
 # Lista de arquivos fonte e objetos
 SRCS = $(wildcard $(SRC_DIR)/*.cpp)
