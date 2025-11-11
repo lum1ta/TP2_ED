@@ -44,6 +44,10 @@ void Run::addD(Demand* d) {
     }
 }
 
+void Run::remLastD(){
+    
+}
+
 int Run::getNumD() const {
     return numDemands;
 }

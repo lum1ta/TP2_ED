@@ -31,6 +31,7 @@ public:
 
     // Getters and Setters
     void addD(Demand* d);
+    void remLastD();
     int getNumD() const;
     Demand* getD(int i) const;
     int getId() const;

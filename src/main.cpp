@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cmath>
+#include <fstream>
 #include "Scaler.h"
 #include "Demand.h"
 #include "Run.h"
@@ -15,208 +16,14 @@ using namespace std;
 #define MAIN_MAX_PATHS 20
 #define MAIN_MAX_RUN_DEMANDS 10
 
-// Função auxiliar: distância euclidiana
 double dist2d(double x1, double y1, double x2, double y2) {
-    double dx = x1 - x2;
-    double dy = y1 - y2;
-    return sqrt(dx*dx + dy*dy);
+    return sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
 }
 
-// Constrói uma corrida combinada
-Run* buildCombinedRun(Demand* demandas[], bool used[], int idx0, int n,
-                      int eta, double delta, double alpha, double beta, double lambda, double gamma) {
-    Run* r = new Run();
 
-    int C[MAIN_MAX_RUN_DEMANDS];
-    int numC = 0;
-
-    C[numC++] = idx0;
-    used[idx0] = true;
-
-    double s_time0 = demandas[idx0]->getS_time();
-
-    // Para demandas iniciais, praticamente não combinar
-    bool isEarlyDemand = (s_time0 < 50.0);
-
-    // Tentar adicionar outras demandas dentro de delta
-    for (int j = 0; j < n; j++) {
-        if (j == idx0) continue;
-        if (numC >= eta) break;
-        if (used[j]) continue;
-
-        double tdiff = fabs(demandas[j]->getS_time() - s_time0);
-        if (tdiff > delta) continue;
-
-        // Critério SUPER restritivo
-        bool ok = true;
-        for (int k = 0; k < numC; k++) {
-            int idxInC = C[k];
-            
-            double d_org = dist2d(demandas[j]->getOriginX(), demandas[j]->getOriginY(),
-                                  demandas[idxInC]->getOriginX(), demandas[idxInC]->getOriginY());
-            double d_dst = dist2d(demandas[j]->getDestX(), demandas[j]->getDestY(),
-                                  demandas[idxInC]->getDestX(), demandas[idxInC]->getDestY());
-            
-            // CORREÇÃO FINAL: Critério EXTREMAMENTE restritivo
-            if (isEarlyDemand) {
-                // Para demandas iniciais: APENAS 5% dos limites
-                if (d_org > alpha * 0.05 || d_dst > beta * 0.05) {
-                    ok = false;
-                    break;
-                }
-            } else if (lambda < 0.5) {
-                // Para lambda baixo: 10% dos limites
-                if (d_org > alpha * 0.1 || d_dst > beta * 0.1) {
-                    ok = false;
-                    break;
-                }
-            } else {
-                // Comportamento normal: 30% dos limites
-                if (d_org > alpha * 0.3 || d_dst > beta * 0.3) {
-                    ok = false;
-                    break;
-                }
-            }
-        }
-
-        if (!ok) continue;
-
-        // Verificar se a demanda individual é muito longa
-        double S_individual = dist2d(demandas[j]->getOriginX(), demandas[j]->getOriginY(),
-                                   demandas[j]->getDestX(), demandas[j]->getDestY());
-        
-        // Limite MUITO baixo para o input_3
-        if (isEarlyDemand && S_individual > 0.05) {
-            continue;
-        }
-        if (S_individual > 0.15) {
-            continue;
-        }
-
-        // Calcular eficiência da combinação
-        double S = 0.0;
-        for (int k = 0; k < numC; k++) {
-            Demand* d = demandas[C[k]];
-            S += dist2d(d->getOriginX(), d->getOriginY(), d->getDestX(), d->getDestY());
-        }
-        S += S_individual;
-
-        // Calcular rota
-        double T = 0.0;
-        double px[MAIN_MAX_RUN_DEMANDS * 2];
-        double py[MAIN_MAX_RUN_DEMANDS * 2];
-        int np = 0;
-
-        // Pickups primeiro
-        for (int k = 0; k < numC; k++) {
-            Demand* d = demandas[C[k]];
-            px[np] = d->getOriginX(); py[np++] = d->getOriginY();
-        }
-        px[np] = demandas[j]->getOriginX(); py[np++] = demandas[j]->getOriginY();
-        
-        // Dropoffs depois  
-        for (int k = 0; k < numC; k++) {
-            Demand* d = demandas[C[k]];
-            px[np] = d->getDestX(); py[np++] = d->getDestY();
-        }
-        px[np] = demandas[j]->getDestX(); py[np++] = demandas[j]->getDestY();
-
-        // Calcular distância total da rota
-        for (int k = 1; k < np; k++) {
-            T += dist2d(px[k-1], py[k-1], px[k], py[k]);
-        }
-
-        // Exigência de eficiência ALTÍSSIMA
-        double eff = (T > 0.0) ? (S / T) : 0.0;
-        if (isEarlyDemand) {
-            if (eff < lambda * 10.0) { // 900% acima do mínimo!
-                continue;
-            }
-        } else if (lambda < 0.5) {
-            if (eff < lambda * 3.0) { // 200% acima do mínimo
-                continue;
-            }
-        } else {
-            if (eff < lambda * 1.2) {
-                continue;
-            }
-        }
-
-        // Adicionar demanda
-        C[numC++] = j;
-        used[j] = true;
-    }
-
-    // Construir efetivamente a corrida
-    for (int k = 0; k < numC; k++) {
-        r->addD(demandas[C[k]]);
-    }
-
-    // Criar stops e paths
-    Stop* stops[MAIN_MAX_PATHS];
-    int numStops = 0;
-
-    for (int k = 0; k < numC; k++) {
-        Demand* d = demandas[C[k]];
-        stops[numStops++] = new Stop(d->getOriginX(), d->getOriginY(), STOP_PICKUP, d);
-    }
-    for (int k = 0; k < numC; k++) {
-        Demand* d = demandas[C[k]];
-        stops[numStops++] = new Stop(d->getDestX(), d->getDestY(), STOP_DROPOFF, d);
-    }
-
-    double totalDist = 0.0;
-    double totalTime = 0.0;
-    
-    for (int i = 1; i < numStops; i++) {
-        Path_Type type = (i < numC) ? PICKUP_PATH : DROPOFF_PATH;
-        
-        double dlen = dist2d(stops[i-1]->getX(), stops[i-1]->getY(),
-                             stops[i]->getX(), stops[i]->getY());
-        double tseg = (gamma > 0.0) ? dlen / gamma : 0.0;
-        
-        Path* p = new Path(stops[i-1], stops[i], type, dlen, tseg);
-        r->addPath(p);
-        totalDist += dlen;
-        totalTime += tseg;
-    }
-
-    r->setTime_P(totalTime);
-    r->C_eficiency();
-
-    for (int i = 0; i < numStops; i++) {
-        delete stops[i];
-    }
-
-    return r;
-}
-
-// Função auxiliar para criar run individual
-Run* createIndividualRun(Demand* d, double gamma) {
-    Run* r = new Run();
-    r->addD(d);
-    
-    Stop* start = new Stop(d->getOriginX(), d->getOriginY(), STOP_PICKUP, d);
-    Stop* end = new Stop(d->getDestX(), d->getDestY(), STOP_DROPOFF, d);
-    
-    double dist = dist2d(start->getX(), start->getY(), end->getX(), end->getY());
-    double time = (gamma > 0.0) ? dist / gamma : 0.0;
-    
-    Path* p = new Path(start, end, PICKUP_PATH, dist, time);
-    r->addPath(p);
-    r->setTime_P(time);
-    r->C_eficiency();
-    
-    delete start;
-    delete end;
-    
-    return r;
-}
-
-// Função auxiliar para obter a sequência de stops de uma run
+//Função getRunStops 
 void getRunStops(Run* r, Stop* stops[], int& numStops) {
     numStops = 0;
-    
     int numDemands = r->getNumD();
     
     for (int i = 0; i < numDemands; i++) {
@@ -229,152 +36,243 @@ void getRunStops(Run* r, Stop* stops[], int& numStops) {
     }
 }
 
-int main() {
+// **VOLTAR ao critério RIGOROSO original**
+bool canCombineWithGroup(Demand* newDemand, Demand* group[], int groupSize, 
+                         double delta, double alpha, double beta) {
+    // Critério de Tempo
+    for (int i = 0; i < groupSize; i++) {
+        if (fabs(newDemand->getS_time() - group[i]->getS_time()) > delta) 
+            return false;
+    }
+    // Critério de distância entre origens (alfa)
+    for (int i = 0; i < groupSize; i++) {
+        double orgDist = dist2d(newDemand->getOriginX(), newDemand->getOriginY(),
+                                group[i]->getOriginX(), group[i]->getOriginY());
+        if (orgDist > alpha) return false;
+    }
+    // Critério de distância entre (beta)
+    for (int i = 0; i < groupSize; i++) {
+        double destDist = dist2d(newDemand->getDestX(), newDemand->getDestY(),
+                                 group[i]->getDestX(), group[i]->getDestY());
+        if (destDist > beta) return false;
+    }
+    // Adicionar: Critério de capacidade do carro
+    return true;
+}
+
+// [CORREÇÃO 2: Rota da Versão Básica (PDF )]
+double calculateActualRouteDistance(Demand* demandas[], int indices[], int count) {
+    if (count == 0) return 0.0;
+    if (count == 1) {
+        return dist2d(demandas[indices[0]]->getOriginX(), demandas[indices[0]]->getOriginY(),
+                      demandas[indices[0]]->getDestX(), demandas[indices[0]]->getDestY());
+    }
+    
+    double totalDist = 0.0;
+
+    // 1. Trechos de COLETA (P0 -> P1 -> ... -> P(k-1))
+    for (int i = 1; i < count; i++) {
+        totalDist += dist2d(demandas[indices[i-1]]->getOriginX(), // P(i-1)
+                            demandas[indices[i-1]]->getOriginY(),
+                            demandas[indices[i]]->getOriginX(),   // P(i)
+                            demandas[indices[i]]->getOriginY());
+    }
+    
+    // 2. Trecho de DESLOCAMENTO (P(k-1) -> D0)
+    // P(k-1) = última coleta (indice count-1)
+    // D0     = primeira entrega (indice 0)
+    totalDist += dist2d(demandas[indices[count-1]]->getOriginX(), // P(k-1)
+                        demandas[indices[count-1]]->getOriginY(),
+                        demandas[indices[0]]->getDestX(),       // D0
+                        demandas[indices[0]]->getDestY());
+    
+    // 3. Trechos de ENTREGA (D0 -> D1 -> ... -> D(k-1))
+    for (int i = 1; i < count; i++) {
+        totalDist += dist2d(demandas[indices[i-1]]->getDestX(), // D(i-1)
+                            demandas[indices[i-1]]->getDestY(),
+                            demandas[indices[i]]->getDestX(),   // D(i)
+                            demandas[indices[i]]->getDestY());
+    }
+    
+    return totalDist;
+}
+// [CORREÇÃO 3: Tipos de Trechos (PDF )]
+Run* createOptimizedRun(Demand* demandas[], int indices[], int count, double gamma) {
+    Run* r = new Run();
+    for (int i = 0; i < count; i++) r->addD(demandas[indices[i]]);
+    
+    if (count == 1) {
+        double dist = dist2d(demandas[indices[0]]->getOriginX(), demandas[indices[0]]->getOriginY(),
+                             demandas[indices[0]]->getDestX(), demandas[indices[0]]->getDestY());
+        double time = dist / gamma;
+        Stop* start = new Stop(demandas[indices[0]]->getOriginX(), demandas[indices[0]]->getOriginY(), STOP_PICKUP, demandas[indices[0]]);
+        Stop* end = new Stop(demandas[indices[0]]->getDestX(), demandas[indices[0]]->getDestY(), STOP_DROPOFF, demandas[indices[0]]);
+        
+        // BUG [1] FIX: Corrida individual é 1 trecho de DESLOCAMENTO (TRANS_PATH) 
+        Path* p = new Path(start, end, TRANS_PATH, dist, time); 
+        r->addPath(p);
+        r->setTime_P(time);
+        delete start;
+        delete end;
+    } else {
+        // Rota básica (P0...Pk-1, D0...Dk-1) 
+        Stop* stops[MAIN_MAX_PATHS];
+        int numStops = 0;
+        // Paradas de Coleta (P0...Pk-1)
+        for (int i = 0; i < count; i++) {
+            stops[numStops++] = new Stop(demandas[indices[i]]->getOriginX(), demandas[indices[i]]->getOriginY(), STOP_PICKUP, demandas[indices[i]]);
+        }
+        // Paradas de Entrega (D0...Dk-1)
+        for (int i = 0; i < count; i++) {
+            stops[numStops++] = new Stop(demandas[indices[i]]->getDestX(), demandas[indices[i]]->getDestY(), STOP_DROPOFF, demandas[indices[i]]);
+        }
+
+        double totalDist = 0.0, totalTime = 0.0;
+
+        // numStops = 2 * count
+        // O loop 'i' vai de 1 a (2*count - 1)
+        for (int i = 1; i < numStops; i++) {
+            double dist = dist2d(stops[i-1]->getX(), stops[i-1]->getY(), stops[i]->getX(), stops[i]->getY());
+            double time = dist / gamma;
+            
+            // BUG [2] FIX: Identificar os 3 tipos de trecho 
+            Path_Type type;
+            if (i < count) {
+                // Trechos 1 a (count-1): (P0->P1), ... (P(k-2)->P(k-1))
+                type = PICKUP_PATH; // Coleta
+            } else if (i == count) {
+                // Trecho 'count': (P(k-1) -> D0)
+                type = TRANS_PATH; // Deslocamento
+            } else {
+                // Trechos (count+1) a (2*count-1): (D0->D1), ...
+                type = DROPOFF_PATH; // Entrega
+            }
+
+            Path* p = new Path(stops[i-1], stops[i], type, dist, time);
+            r->addPath(p);
+            totalDist += dist;
+            totalTime += time;
+        }
+        r->setTime_P(totalTime);
+        for (int i = 0; i < numStops; i++) delete stops[i];
+    }
+    r->C_eficiency();
+    return r;
+}
+
+int main(int argc, char *argv[]) {
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
+
+    istream* input_stream = &cin;
+    ifstream arquivo;
+    
+    if (argc == 2) {
+        arquivo.open(argv[1]);
+        if (!arquivo.is_open()) return 1;
+        input_stream = &arquivo;
+    }
 
     int eta;
     double gamma, delta, alpha, beta, lambda;
     int n;
-
-    if (!(cin >> eta >> gamma >> delta >> alpha >> beta >> lambda)) {
-        cerr << "Erro na leitura dos parâmetros.\n";
-        return 1;
-    }
-
-    if (!(cin >> n)) {
-        cerr << "Erro na leitura do número de demandas.\n";
-        return 1;
-    }
+    
+    *input_stream >> eta >> gamma >> delta >> alpha >> beta >> lambda;
+    *input_stream >> n;
 
     Demand* demandas[MAIN_MAX_DEMANDS];
     bool used[MAIN_MAX_DEMANDS] = {false};
-    int numDemandas = 0;
 
     for (int i = 0; i < n; i++) {
         int id;
         double s_time, originX, originY, destX, destY;
-        
-        if (!(cin >> id >> s_time >> originX >> originY >> destX >> destY)) {
-            cerr << "Erro na leitura da demanda " << i << endl;
-            return 1;
-        }
-        
-        demandas[numDemandas] = new Demand(id, s_time, originX, originY, destX, destY);
-        used[numDemandas] = false;
-        numDemandas++;
+        *input_stream >> id >> s_time >> originX >> originY >> destX >> destY;
+        demandas[i] = new Demand(id, s_time, originX, originY, destX, destY);
     }
-
-    // Ordenação manual por tempo
-    //Posso depois utilizar um alg de ordenação melhor
-    for (int i = 0; i < numDemandas - 1; i++) {
-        for (int j = i + 1; j < numDemandas; j++) {
-            if (demandas[j]->getS_time() < demandas[i]->getS_time()) {
-                Demand* temp = demandas[i];
-                demandas[i] = demandas[j];
-                demandas[j] = temp;
-                
-                bool tempUsed = used[i];
-                used[i] = used[j];
-                used[j] = tempUsed;
-            }
-        }
-    }
+    
+    if (arquivo.is_open()) arquivo.close();
 
     Run* runs[MAIN_MAX_RUNS];
     int numRuns = 0;
 
-    // Esqueci de considerar que todas as corridas são inicialmente individuais
-    for (int i = 0; i < numDemandas; i++) {
-        if (!used[i]) {
-            // Para demandas MUITO iniciais (tempo < 30), SEMPRE individuais
-            if (demandas[i]->getS_time() < 30.0) {
-                Run* individual = createIndividualRun(demandas[i], gamma);
-                runs[numRuns++] = individual;
-                used[i] = true;
-                continue;
+    for (int i = 0; i < n; i++) {
+        if (used[i]) continue;
+        
+        Demand* currentGroup[MAIN_MAX_RUN_DEMANDS];
+        int groupIndices[MAIN_MAX_RUN_DEMANDS];
+        int groupSize = 0;
+        
+        currentGroup[groupSize] = demandas[i];
+        groupIndices[groupSize] = i;
+        groupSize++;
+        used[i] = true;
+        
+    // [CORREÇÃO 1: Lógica de Agrupamento da Versão Básica]
+    // Substitua o loop 'agressivo' por este (lógica "parar na primeira falha")
+
+    for (int j = i + 1; j < n && groupSize < eta; j++) {
+            if (used[j]) continue;
+
+            if (demandas[j]->getS_time() - demandas[i]->getS_time() >= delta) {
+                break;
+            }
+
+            // Critério 2: Alpha, Beta e Delta (PDF [cite: 40])
+            if (!canCombineWithGroup(demandas[j], currentGroup, groupSize, delta, alpha, beta)) {
+                break;
+            }
+
+            // Se passou nos critérios de tempo/distância, testamos a eficiência (Lambda)
+            // Adicionamos temporariamente o índice de 'j' para calcular a rota
+            groupIndices[groupSize] = j;
+
+            // Usamos a função de rota BÁSICA (Corrigida na Seção 2)
+            double actualDist = calculateActualRouteDistance(demandas, groupIndices, groupSize + 1);
+
+            double individualDist = 0.0;
+            for (int k = 0; k < groupSize + 1; k++) {
+                individualDist += dist2d(demandas[groupIndices[k]]->getOriginX(),
+                                        demandas[groupIndices[k]]->getOriginY(),
+                                        demandas[groupIndices[k]]->getDestX(),
+                                        demandas[groupIndices[k]]->getDestY());
             }
             
-            // Para outras demandas, verificar combinações MUITO específicas
-            bool foundCombination = false;
-            
-            for (int j = i + 1; j < numDemandas; j++) {
-                if (!used[j]) {
-                    double tdiff = fabs(demandas[i]->getS_time() - demandas[j]->getS_time());
-                    if (tdiff <= delta * 0.15) { // Apenas 15% da janela
-                        double d_org = dist2d(demandas[i]->getOriginX(), demandas[i]->getOriginY(),
-                                            demandas[j]->getOriginX(), demandas[j]->getOriginY());
-                        double d_dst = dist2d(demandas[i]->getDestX(), demandas[i]->getDestY(),
-                                            demandas[j]->getDestX(), demandas[j]->getDestY());
-                        
-                        // Critério EXTREMAMENTE restritivo
-                        if (d_org <= alpha * 0.03 && d_dst <= beta * 0.03) { // 3% dos limites!
-                            // Combinar APENAS estas 2 demandas
-                            Run* r = new Run();
-                            r->addD(demandas[i]);
-                            r->addD(demandas[j]);
-                            used[i] = true;
-                            used[j] = true;
-                            
-                            // Criar stops
-                            Stop* stops[4];
-                            stops[0] = new Stop(demandas[i]->getOriginX(), demandas[i]->getOriginY(), STOP_PICKUP, demandas[i]);
-                            stops[1] = new Stop(demandas[j]->getOriginX(), demandas[j]->getOriginY(), STOP_PICKUP, demandas[j]);
-                            stops[2] = new Stop(demandas[i]->getDestX(), demandas[i]->getDestY(), STOP_DROPOFF, demandas[i]);
-                            stops[3] = new Stop(demandas[j]->getDestX(), demandas[j]->getDestY(), STOP_DROPOFF, demandas[j]);
-                            
-                            double totalDist = 0.0;
-                            double totalTime = 0.0;
-                            
-                            // Criar paths
-                            for (int k = 1; k < 4; k++) {
-                                double dlen = dist2d(stops[k-1]->getX(), stops[k-1]->getY(), stops[k]->getX(), stops[k]->getY());
-                                double tseg = (gamma > 0.0) ? dlen / gamma : 0.0;
-                                Path* p = new Path(stops[k-1], stops[k], (k < 2) ? PICKUP_PATH : DROPOFF_PATH, dlen, tseg);
-                                r->addPath(p);
-                                totalDist += dlen;
-                                totalTime += tseg;
-                            }
-                            
-                            r->setTime_P(totalTime);
-                            r->C_eficiency();
-                            runs[numRuns++] = r;
-                            
-                            for (int k = 0; k < 4; k++) delete stops[k];
-                            foundCombination = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            if (!foundCombination) {
-                // Criar como individual
-                Run* individual = createIndividualRun(demandas[i], gamma);
-                runs[numRuns++] = individual;
-                used[i] = true;
+            double efficiency = (actualDist > 1e-9) ? individualDist / actualDist : 0.0;
+
+            // Critério 3: Lambda (PDF [cite: 43])
+            if (efficiency >= lambda) {
+                // SUCESSO: A eficiência é boa.
+                // Adicionamos permanentemente a demanda ao grupo.
+                currentGroup[groupSize] = demandas[j];
+                groupSize++;
+                used[j] = true;
+            } else {
+                // FALHA: A eficiência não foi atingida.
+                // PDF[cite: 43]: "remova ci de C ... interrompa a avaliação e conclua a definição de r."
+                // Não precisamos "remover" (pois só mexemos em 'groupIndices'),
+                // mas devemos parar de procurar.
+                break;
             }
         }
+
+        // O restante do loop 'i' continua (cria a corrida, etc.)
+        // Usamos a função de criação de rota BÁSICA (Corrigida na Seção 3)
+        Run* newRun = createOptimizedRun(demandas, groupIndices, groupSize, gamma);
+        runs[numRuns++] = newRun;
     }
 
     Scaler escalonador;
     escalonador.Initialize();
 
-    // Agendar eventos de fim de run
     for (int i = 0; i < numRuns; i++) {
         Run* r = runs[i];
-        if (r->getNumD() == 0) continue;
-        
         Demand* firstDemand = r->getD(0);
         double startTime = firstDemand->getS_time();
         double endTime = startTime + r->getTime_P();
-        
-        Path* firstPath = (r->getNumPaths() > 0) ? r->getPath(0) : nullptr;
-        Event* e = new Event(endTime, END_RUN, firstPath, firstDemand, r);
+        Event* e = new Event(endTime, END_RUN, nullptr, firstDemand, r);
         escalonador.Insert(e);
     }
 
-    // Processar eventos
     while (true) {
         Event* e = escalonador.RemoveNextEvent();
         if (e == nullptr) break;
@@ -382,47 +280,33 @@ int main() {
         if (e->getType() == END_RUN) {
             Run* r = e->getRun();
             
-            // Calcular distância total
             double totalDist = 0.0;
             for (int j = 0; j < r->getNumPaths(); j++) {
-                Path* p = r->getPath(j);
-                totalDist += p->getDistance();
+                totalDist += r->getPath(j)->getDistance();
             }
             
-            // Obter a sequência de stops (paradas)
             Stop* stops[MAIN_MAX_PATHS];
             int numStops = 0;
             getRunStops(r, stops, numStops);
             
-            // Formatar saída
-            cout << fixed << setprecision(2)
-                 << e->getTime() << " "
-                 << totalDist << " "
-                 << numStops << " ";
-            
-            // Sequência de coordenadas das paradas
+            cout << fixed << setprecision(2);
+            cout << e->getTime() << " " << totalDist << " " << numStops;
             for (int j = 0; j < numStops; j++) {
-                cout << fixed << setprecision(2)
-                     << stops[j]->getX() << " "
-                     << stops[j]->getY();
-                if (j != numStops - 1) cout << " ";
+                cout << " " << stops[j]->getX() << " " << stops[j]->getY();
             }
             cout << "\n";
             
-            // Liberar stops temporários
             for (int j = 0; j < numStops; j++) {
                 delete stops[j];
             }
         }
-
         delete e;
     }
 
     escalonador.Finish();
 
-    // Liberar memória
     for (int i = 0; i < numRuns; i++) delete runs[i];
-    for (int i = 0; i < numDemandas; i++) delete demandas[i];
+    for (int i = 0; i < n; i++) delete demandas[i];
 
     return 0;
 }
