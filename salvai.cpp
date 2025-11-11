@@ -16,10 +16,11 @@ using namespace std;
 #define MAIN_MAX_PATHS 20
 #define MAIN_MAX_RUN_DEMANDS 10
 
-//Funcao que calcula a distancia euclidiana
 double dist2d(double x1, double y1, double x2, double y2) {
     return sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
 }
+
+
 //Função getRunStops 
 void getRunStops(Run* r, Stop* stops[], int& numStops) {
     numStops = 0;
@@ -29,7 +30,7 @@ void getRunStops(Run* r, Stop* stops[], int& numStops) {
         Demand* d = r->getD(i);
         stops[numStops++] = new Stop(d->getOriginX(), d->getOriginY(), STOP_PICKUP, d);
     }
-    //Pega o desembarque
+    //Pega o dessembarque
     for (int i = 0; i < numDemands; i++) {
         Demand* d = r->getD(i);
         stops[numStops++] = new Stop(d->getDestX(), d->getDestY(), STOP_DROPOFF, d);
@@ -38,23 +39,28 @@ void getRunStops(Run* r, Stop* stops[], int& numStops) {
 
 //Aplicacão dos critérios para ver se bate
 bool canCombineWithGroup(Demand* newDemand, Demand* group[], int groupSize, 
-                         double delta, double alpha, double beta,double eta) {
+                         double delta, double alpha, double beta) {
     // Critério de Tempo
     for (int i = 0; i < groupSize; i++) {
         if (fabs(newDemand->getS_time() - group[i]->getS_time()) > delta) 
             return false;
-    
+    }
     // Critério de distância entre origens (alfa)
+    for (int i = 0; i < groupSize; i++) {
         double orgDist = dist2d(newDemand->getOriginX(), newDemand->getOriginY(),
                                 group[i]->getOriginX(), group[i]->getOriginY());
         if (orgDist > alpha) return false;
+    }
     // Critério de distância entre destinos (beta)
+    for (int i = 0; i < groupSize; i++) {
         double destDist = dist2d(newDemand->getDestX(), newDemand->getDestY(),
                                  group[i]->getDestX(), group[i]->getDestY());
         if (destDist > beta) return false;
-    // Critério de capacidade de veiculos (eta)
-        if(groupSize >= eta) return false;
     }
+    // Critério de capacidade de veiculos (eta)
+    //for(int i = 0;i < groupSize;i++){
+        //if(groupSize >= eta) return false;
+    //}
     return true;
 }
 
@@ -70,6 +76,7 @@ double calculateActualRouteDistance(Demand* demandas[], int indices[], int count
     //iterar a distância total  percorrida
 
     double totalDist = 0.0;
+
 
     //Tipos de trecho
 
@@ -99,6 +106,7 @@ double calculateActualRouteDistance(Demand* demandas[], int indices[], int count
     
     return totalDist;
 }
+
 Run* createOptimizedRun(Demand* demandas[], int indices[], int count, double gamma) {
     Run* r = new Run();
     for (int i = 0; i < count; i++) r->addD(demandas[indices[i]]);
@@ -114,7 +122,10 @@ Run* createOptimizedRun(Demand* demandas[], int indices[], int count, double gam
         Path* p = new Path(start, end, TRANS_PATH, dist, time); 
         r->addPath(p);
         r->setTime_P(time);
+        delete start;
+        delete end;
     } else {
+
         // Rota básica (P0...Pk-1, D0...Dk-1) 
         Stop* stops[MAIN_MAX_PATHS];
         int numStops = 0;
@@ -217,7 +228,7 @@ int main(int argc, char *argv[]) {
             }
 
             // Critério 2: Alpha, Beta e Delta 
-            if (!canCombineWithGroup(demandas[j], currentGroup, groupSize, delta, alpha, beta,eta)) {
+            if (!canCombineWithGroup(demandas[j], currentGroup, groupSize, delta, alpha, beta)) {
                 break;
             }
 
